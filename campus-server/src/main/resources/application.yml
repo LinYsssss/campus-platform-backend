@@ -1,0 +1,58 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: campus-platform
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    # 待后期建库后填写真实密码
+    url: jdbc:mysql://127.0.0.1:3306/campus_system?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=true&serverTimezone=GMT%2B8
+    username: root
+    password: password
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      database: 0
+      password:
+
+mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*Mapper.xml
+  type-aliases-package: com.campus.system.modules.*.entity
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+# Sa-Token 配置
+sa-token:
+  token-name: Authorization # token名称
+  timeout: 7200             # token有效期，单位s 默认2小时
+  active-timeout: -1        # token临时有效期 (指定时间内无操作就视为token过期)
+  is-concurrent: true       # 是否允许同一账号并发登录
+  is-share: true            # 在多人登录同一账号时，是否共用一个token
+  token-style: uuid
+  is-log: false
+
+# JetCache 配置
+jetcache:
+  statIntervalMinutes: 15
+  areaInCacheName: false
+  local:
+    default:
+      type: caffeine
+      keyConvertor: fastjson
+  remote:
+    default:
+      type: redis.lettuce
+      keyConvertor: fastjson
+      valueEncoder: java
+      valueDecoder: java
+      uri: redis://127.0.0.1:6379/
