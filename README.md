@@ -14,17 +14,12 @@
 
 ## 3. 系统模块划分 (Modules)
 项目采用按层与按模块混合切割的 MVC 结构，核心根包为 `com.campus.system`：
-- **公共基座 (`common`, `config`, `filter`, `annotation`)**: 统一异常处理 (`Result<T>`)、统一跨域及 Web 拦截器配置、自定义切面日志处理 (`@LogRecord`)、MyBatis-Plus 通用配置等。
-- **认证授权模块 (`modules/auth`)**: 图形验证码校验、账号登录及 Sa-Token 下发认证机制。
-- **系统基础模块 (`modules/sys`)**: 用户台账管理、参数化字典架构、动态菜单权限分发及系统操作日志审计。
-- **教研核心模块 (`modules/edu`)**: 
-  - 课程管理：档案与电子教案分发。
-  - 考勤管理：基于时间窗与 Cache-Aside 并发防护的防单机穿透签到系统，请假电子工单流。
-  - 成绩管理：防篡改成绩录入、三阶段状态机流审机制与防线复议申诉池。
-- **校园服务模块 (`modules/svc`)**: 
-  - 宿舍与报修维护大单系统，包含图纸举证上传。
-  - 看板大屏展示：由定时任务（Scheduled）支撑聚合运算的 JetCache 快照库数据输送链路。
-  - 校园卡与图书借阅记录流水及公告通发平台。
+- **公共基座 (`common`, `config`, `util`)**: 统一异常处理 (`Result<T>`)、Web 拦截器 (`SaTokenConfig`)、MyBatis-Plus 分页与自动填充、JetCache 本地+Redis缓存拦截、以及常用工具类（如 `SecurityUtils`, `FileUtils`）。
+- **底层管控组 (`modules/sys`)**: 包含 `sys_user`, `sys_role`, `sys_menu`, `sys_dict`, `sys_log` 等9张核心表。负责后台账户、动态菜单权限分发、字典解析与操作日志防爆破审计。
+- **教研链服务组 (`modules/edu`)**: 包含 `edu_course`, `edu_timetable`, `edu_attendance`, `edu_score` 等11张表。涵盖课程大纲、智能排课课表、时间窗防作弊签到、成绩录入流转与申诉复议机。
+- **后勤综合服务组 (`modules/svc`)**: 包含 `campus_notice`, `campus_dormitory`, `campus_repair`, `campus_card`, `campus_book` 等11张表。接管通告下发、宿舍分配入住管理、大单图纸举证报修流以及图书/消费流水系统。
+
+> **注**：以上各模块的 Entity, Mapper, Service, Controller 已由 MyBatis-Plus Code Generator 基于底表 DDL 物理模型全量自动生成。采用 `MyBatis-Plus` 的 `IService` 和 `BaseMapper` 提供丰富的单表 CRUD 及 Lambda 链式调用能力。
 
 ## 4. 接口规范与开发细则
 - **统一响应外包**: 全路网采用标准的 `Result<T>` `(code, msg, data)` 回应 JSON 报文。
