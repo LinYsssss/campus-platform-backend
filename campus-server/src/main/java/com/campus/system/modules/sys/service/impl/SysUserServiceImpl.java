@@ -69,7 +69,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         Page<SysUser> page = this.page(new Page<>(query.getPageNum(), query.getPageSize()), wrapper);
 
         List<SysUserVO> voList = page.getRecords().stream().map(this::toVO).collect(Collectors.toList());
-        return new PageResult<>(page.getTotal(), voList, query.getPageNum(), query.getPageSize());
+        return new PageResult<>(page.getTotal(), voList, (long) query.getPageNum(), (long) query.getPageSize());
     }
 
     @Override
