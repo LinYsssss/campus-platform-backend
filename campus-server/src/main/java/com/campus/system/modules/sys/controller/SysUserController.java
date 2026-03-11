@@ -2,6 +2,7 @@ package com.campus.system.modules.sys.controller;
 
 import cn.dev33.satoken.annotation.SaCheckPermission;
 import cn.dev33.satoken.annotation.SaCheckRole;
+import com.campus.system.annotation.LogRecord;
 import com.campus.system.common.api.PageResult;
 import com.campus.system.common.api.Result;
 import com.campus.system.modules.sys.dto.SysUserCreateDTO;
@@ -51,6 +52,7 @@ public class SysUserController {
      */
     @PostMapping
     @SaCheckPermission("sys:user:add")
+    @LogRecord(module = "用户管理", type = "新增")
     public Result<Void> create(@Valid @RequestBody SysUserCreateDTO dto) {
         userService.createUser(dto);
         return Result.success();
@@ -62,6 +64,7 @@ public class SysUserController {
      */
     @PutMapping
     @SaCheckPermission("sys:user:edit")
+    @LogRecord(module = "用户管理", type = "修改")
     public Result<Void> update(@Valid @RequestBody SysUserUpdateDTO dto) {
         userService.updateUser(dto);
         return Result.success();
@@ -73,6 +76,7 @@ public class SysUserController {
      */
     @DeleteMapping("/{id}")
     @SaCheckPermission("sys:user:delete")
+    @LogRecord(module = "用户管理", type = "删除")
     public Result<Void> delete(@PathVariable Long id) {
         userService.deleteUser(id);
         return Result.success();
@@ -84,6 +88,7 @@ public class SysUserController {
      */
     @PutMapping("/{id}/status/{status}")
     @SaCheckPermission("sys:user:edit")
+    @LogRecord(module = "用户管理", type = "状态变更")
     public Result<Void> toggleStatus(@PathVariable Long id, @PathVariable Integer status) {
         userService.toggleStatus(id, status);
         return Result.success();
@@ -95,6 +100,7 @@ public class SysUserController {
      */
     @PutMapping("/{id}/resetPwd")
     @SaCheckRole("admin")
+    @LogRecord(module = "用户管理", type = "重置密码")
     public Result<Void> resetPassword(@PathVariable Long id, @RequestParam String newPassword) {
         userService.resetPassword(id, newPassword);
         return Result.success();
@@ -106,6 +112,7 @@ public class SysUserController {
      */
     @PostMapping("/import")
     @SaCheckRole("admin")
+    @LogRecord(module = "用户管理", type = "导入")
     public Result<String> importUsers(@RequestParam("file") MultipartFile file) {
         return Result.success(userService.importUsers(file));
     }
