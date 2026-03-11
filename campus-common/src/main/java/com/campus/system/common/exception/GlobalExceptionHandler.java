@@ -1,5 +1,8 @@
 package com.campus.system.common.exception;
 
+import cn.dev33.satoken.exception.NotLoginException;
+import cn.dev33.satoken.exception.NotPermissionException;
+import cn.dev33.satoken.exception.NotRoleException;
 import com.campus.system.common.api.Result;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.validation.BindException;
@@ -11,10 +14,35 @@ import java.util.Objects;
 
 /**
  * 全局异常捕捉网兜
+ * 拦截优先级：Sa-Token鉴权 → 参数校验 → 业务异常 → 兜底异常
  */
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    /**
+     * Sa-Token 未登录异常
+     */
+    @ExceptionHandler(NotLoginException.class)
+    public Result<?> handleNotLoginException(NotLoginException e) {
+        return Result.error(401, "Token已失效或未提供，请重新登录");
+    }
+
+    /**
+     * Sa-Token 缺少权限异常
+     */
+    @ExceptionHandler(NotPermissionException.class)
+    public Result<?> handleNotPermissionException(NotPermissionException e) {
+        return Result.error(403, "当前账号权限不足，拒绝访问");
+    }
+
+    /**
+     * Sa-Token 缺少角色异常
+     */
+    @ExceptionHandler(NotRoleException.class)
+    public Result<?> handleNotRoleException(NotRoleException e) {
+        return Result.error(403, "当前账号角色不足，拒绝访问");
+    }
 
     /**
      * 自定义业务异常拦截
@@ -26,7 +54,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 参数校验异常拦截
+     * 参数校验异常拦截（@RequestBody）
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public Result<?> handleValidationException(MethodArgumentNotValidException e) {
@@ -34,7 +62,10 @@ public class GlobalExceptionHandler {
         log.warn("参数校验未通过: {}", message);
         return Result.error(400, message);
     }
-    
+
+    /**
+     * 参数绑定异常拦截（@ModelAttribute）
+     */
     @ExceptionHandler(BindException.class)
     public Result<?> handleBindException(BindException e) {
         String message = Objects.requireNonNull(e.getBindingResult().getFieldError()).getDefaultMessage();
@@ -43,18 +74,10 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 未捕获的系统异常兜底
+     * 未捕获的系统异常兜底 —— 最后一道防线
      */
     @ExceptionHandler(Exception.class)
     public Result<?> handleSystemException(Exception e) {
-        // 因涉及 Sa-Token 具体类，这里暂时用 Exception 泛网拦截；后续若有 Sa-Token 依赖可特化
-        if (e.getClass().getName().contains("NotLoginException")) {
-            return Result.error(401, "Token断供或已失效，请重新登录");
-        }
-        if (e.getClass().getName().contains("NotPermissionException")) {
-            return Result.error(403, "当前账号权限不足，拒绝访问");
-        }
-        
         log.error("系统繁忙发生不可预知错误", e);
         return Result.error(500, "系统繁忙请求异常，请稍后再试或联系管理员");
     }
