@@ -53,3 +53,6 @@ jetcache:
       valueEncoder: java
       valueDecoder: java
       uri: redis://:123456@127.0.0.1:6379/
+
+campus:
+  upload-path: ./uploads
