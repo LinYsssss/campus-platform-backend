@@ -22,6 +22,6 @@ public class SwaggerConfig {
                         .description("涵盖系统管理(sys)、教研管理(edu)、校园服务(svc)三大业务域的完整后端接口文档")
                         .contact(new Contact()
                                 .name("Campus Platform Team")
-                                .email("admin@campus.com")));
+                                .email("Linxiaowuuuuu@gmail.com")));
     }
 }
