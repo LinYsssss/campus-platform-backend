@@ -59,32 +59,15 @@ public class CampusCardController {
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords(), (long) pageNum, (long) pageSize));
     }
 
-    /** 充值 */
+    /**
+     * 校园卡金额仅允许同步外部流水，禁止在本域系统内人为充值。
+     */
     @PostMapping("/recharge")
     @SaCheckPermission("svc:card:recharge")
-    @LogRecord(module = "校园卡", type = "充值")
+    @LogRecord(module = "校园卡", type = "充值拦截")
     public Result<Void> recharge(@RequestParam Long studentId, @RequestParam String cardNo,
                                  @RequestParam BigDecimal amount) {
-        if (amount.compareTo(BigDecimal.ZERO) <= 0) throw new BusinessException("充值金额必须大于0");
-
-        CampusCardRecord last = cardRecordService.getOne(
-                new LambdaQueryWrapper<CampusCardRecord>()
-                        .eq(CampusCardRecord::getStudentId, studentId)
-                        .orderByDesc(CampusCardRecord::getTransactionTime)
-                        .last("LIMIT 1")
-        );
-        BigDecimal balance = (last != null && last.getBalance() != null) ? last.getBalance() : BigDecimal.ZERO;
-
-        CampusCardRecord record = new CampusCardRecord();
-        record.setStudentId(studentId);
-        record.setCardNo(cardNo);
-        record.setTransactionType(1);
-        record.setAmount(amount);
-        record.setBalance(balance.add(amount));
-        record.setLocation("管理员充值");
-        record.setTransactionTime(LocalDateTime.now());
-        cardRecordService.save(record);
-        return Result.success();
+        throw new BusinessException("校园卡金额仅支持同步外部流水，禁止在本系统内发起充值");
     }
 
     /** 挂失校园卡 */

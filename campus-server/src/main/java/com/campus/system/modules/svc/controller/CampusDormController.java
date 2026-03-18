@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -137,13 +138,18 @@ public class CampusDormController {
     public Result<Void> deallocate(@PathVariable Long id) {
         CampusDormitoryAllocation allocation = allocationService.getById(id);
         if (allocation == null) throw new BusinessException("分配记录不存在");
+        if (!Integer.valueOf(0).equals(allocation.getStatus())) throw new BusinessException("该入住记录已退宿");
 
-        allocationService.removeById(id);
+        allocation.setStatus(1);
+        allocation.setCheckOutDate(LocalDate.now());
+        allocationService.updateById(allocation);
 
         CampusDormitoryRoom room = roomService.getById(allocation.getRoomId());
         if (room != null && room.getUsedCount() > 0) {
             room.setUsedCount(room.getUsedCount() - 1);
-            room.setStatus(0);
+            if (!Integer.valueOf(2).equals(room.getStatus())) {
+                room.setStatus(room.getUsedCount().equals(room.getBedCount()) ? 1 : 0);
+            }
             roomService.updateById(room);
         }
         return Result.success();
