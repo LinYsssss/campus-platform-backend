@@ -75,7 +75,7 @@ public class EduMaterialController {
 
         // 1. 校验文件
         if (file.isEmpty()) throw new BusinessException("文件不能为空");
-        if (file.getSize() > MAX_FILE_SIZE) throw new BusinessException("文件大小不能超过50MB");
+        if (file.getSize() > MAX_FILE_SIZE) throw new BusinessException("文件大小不能超过10MB");
 
         String originalName = file.getOriginalFilename();
         String ext = FileUtil.extName(originalName);
