@@ -4,7 +4,6 @@ import cn.dev33.satoken.annotation.SaCheckPermission;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.campus.system.annotation.LogRecord;
 import com.campus.system.common.api.Result;
-import com.campus.system.common.exception.BusinessException;
 import com.campus.system.modules.svc.entity.CampusDormitoryAllocation;
 import com.campus.system.modules.svc.entity.CampusDormitoryBuilding;
 import com.campus.system.modules.svc.entity.CampusDormitoryRoom;
@@ -15,7 +14,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,7 +24,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -121,75 +118,18 @@ public class CampusDormController {
     @PostMapping("/allocation")
     @SaCheckPermission("svc:dorm:edit")
     @LogRecord(module = "宿舍管理", type = "入住分配")
-    @Transactional(rollbackFor = Exception.class)
     @Operation(summary = "分配宿舍床位")
     public Result<Void> allocate(@RequestBody CampusDormitoryAllocation allocation) {
-        CampusDormitoryRoom room = roomService.getById(allocation.getRoomId());
-        if (room == null) {
-            throw new BusinessException("房间不存在");
-        }
-        if (room.getUsedCount() >= room.getBedCount()) {
-            throw new BusinessException("该房间已满员");
-        }
-        if (Integer.valueOf(2).equals(room.getStatus())) {
-            throw new BusinessException("该房间正在维修，暂不可分配");
-        }
-        if (allocation.getBedNumber() == null || allocation.getBedNumber() < 1 || allocation.getBedNumber() > room.getBedCount()) {
-            throw new BusinessException("床位号不合法");
-        }
-
-        long studentActiveAllocation = allocationService.count(new LambdaQueryWrapper<CampusDormitoryAllocation>()
-                .eq(CampusDormitoryAllocation::getStudentId, allocation.getStudentId())
-                .eq(CampusDormitoryAllocation::getStatus, 0));
-        if (studentActiveAllocation > 0) {
-            throw new BusinessException("该学生已有在住床位，不可重复分配");
-        }
-
-        long occupiedBedCount = allocationService.count(new LambdaQueryWrapper<CampusDormitoryAllocation>()
-                .eq(CampusDormitoryAllocation::getRoomId, allocation.getRoomId())
-                .eq(CampusDormitoryAllocation::getBedNumber, allocation.getBedNumber())
-                .eq(CampusDormitoryAllocation::getStatus, 0));
-        if (occupiedBedCount > 0) {
-            throw new BusinessException("该床位已被占用");
-        }
-
-        allocation.setStatus(0);
-        allocationService.save(allocation);
-
-        room.setUsedCount(room.getUsedCount() + 1);
-        if (room.getUsedCount().equals(room.getBedCount())) {
-            room.setStatus(1);
-        }
-        roomService.updateById(room);
+        allocationService.allocate(allocation);
         return Result.success();
     }
 
     @DeleteMapping("/allocation/{id}")
     @SaCheckPermission("svc:dorm:edit")
     @LogRecord(module = "宿舍管理", type = "退宿")
-    @Transactional(rollbackFor = Exception.class)
     @Operation(summary = "办理退宿")
     public Result<Void> deallocate(@Parameter(description = "分配记录ID") @PathVariable Long id) {
-        CampusDormitoryAllocation allocation = allocationService.getById(id);
-        if (allocation == null) {
-            throw new BusinessException("分配记录不存在");
-        }
-        if (!Integer.valueOf(0).equals(allocation.getStatus())) {
-            throw new BusinessException("该入住记录已退宿");
-        }
-
-        allocation.setStatus(1);
-        allocation.setCheckOutDate(LocalDate.now());
-        allocationService.updateById(allocation);
-
-        CampusDormitoryRoom room = roomService.getById(allocation.getRoomId());
-        if (room != null && room.getUsedCount() > 0) {
-            room.setUsedCount(room.getUsedCount() - 1);
-            if (!Integer.valueOf(2).equals(room.getStatus())) {
-                room.setStatus(room.getUsedCount().equals(room.getBedCount()) ? 1 : 0);
-            }
-            roomService.updateById(room);
-        }
+        allocationService.deallocate(id);
         return Result.success();
     }
 }

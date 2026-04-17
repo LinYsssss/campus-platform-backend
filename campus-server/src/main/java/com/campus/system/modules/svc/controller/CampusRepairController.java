@@ -1,6 +1,7 @@
 package com.campus.system.modules.svc.controller;
 
 import cn.dev33.satoken.annotation.SaCheckPermission;
+import cn.dev33.satoken.annotation.SaCheckRole;
 import cn.hutool.core.util.IdUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -146,7 +147,9 @@ public class CampusRepairController {
     }
 
     @PutMapping("/{id}/verify")
-    @Operation(summary = "验收报修工单")
+    @SaCheckRole("admin")
+    @LogRecord(module = "报修管理", type = "验收")
+    @Operation(summary = "验收报修工单", description = "仅管理员可对已完成工单进行竣工验收")
     public Result<Void> verify(
             @Parameter(description = "工单ID") @PathVariable Long id,
             @Parameter(description = "验收评分，1到5分") @RequestParam Integer score,
@@ -162,13 +165,8 @@ public class CampusRepairController {
             throw new BusinessException("满意度评分需在1到5之间");
         }
 
-        Long currentUserId = SecurityUtils.getCurrentUserId();
-        if (!currentUserId.equals(order.getApplicantId()) && !SecurityUtils.hasRole("admin")) {
-            throw new BusinessException("仅报修申请人或管理员可执行验收");
-        }
-
         order.setStatus(3);
-        order.setVerifyUserId(currentUserId);
+        order.setVerifyUserId(SecurityUtils.getCurrentUserId());
         order.setVerifyTime(LocalDateTime.now());
         order.setVerifyScore(score);
         order.setVerifyRemark(remark);

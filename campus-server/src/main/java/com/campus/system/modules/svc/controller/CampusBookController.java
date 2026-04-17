@@ -3,12 +3,10 @@ package com.campus.system.modules.svc.controller;
 import cn.dev33.satoken.annotation.SaCheckPermission;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.campus.system.annotation.LogRecord;
 import com.campus.system.common.api.PageResult;
 import com.campus.system.common.api.Result;
-import com.campus.system.common.exception.BusinessException;
 import com.campus.system.modules.svc.entity.CampusBook;
 import com.campus.system.modules.svc.entity.CampusBookBorrow;
 import com.campus.system.modules.svc.service.ICampusBookBorrowService;
@@ -18,11 +16,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
-
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 
 /**
  * 图书管理控制器（图书台账 + 借阅/归还）
@@ -84,67 +78,16 @@ public class CampusBookController {
     }
 
     @PostMapping("/borrow")
-    @Transactional(rollbackFor = Exception.class)
     @Operation(summary = "提交图书借阅")
     public Result<Void> borrow(@Parameter(description = "图书ID") @RequestParam Long bookId) {
-        Long studentId = SecurityUtils.getCurrentUserId();
-
-        long borrowing = borrowService.count(
-                new LambdaQueryWrapper<CampusBookBorrow>()
-                        .eq(CampusBookBorrow::getBookId, bookId)
-                        .eq(CampusBookBorrow::getStudentId, studentId)
-                        .eq(CampusBookBorrow::getStatus, 0)
-        );
-        if (borrowing > 0) throw new BusinessException("您已借阅此书且未归还");
-
-        CampusBook book = bookService.getById(bookId);
-        if (book == null) throw new BusinessException("图书不存在");
-        if (book.getAvailableCount() <= 0) throw new BusinessException("该图书暂无可借库存");
-
-        boolean inventoryUpdated = bookService.update(new LambdaUpdateWrapper<CampusBook>()
-                .eq(CampusBook::getId, bookId)
-                .gt(CampusBook::getAvailableCount, 0)
-                .setSql("available_count = available_count - 1"));
-        if (!inventoryUpdated) {
-            throw new BusinessException("该图书暂无可借库存");
-        }
-
-        CampusBookBorrow borrow = new CampusBookBorrow();
-        borrow.setBookId(bookId);
-        borrow.setStudentId(studentId);
-        borrow.setBorrowTime(LocalDateTime.now());
-        borrow.setDueTime(LocalDateTime.now().plusDays(30));
-        borrow.setStatus(0);
-        borrow.setOverdueDays(0);
-        borrowService.save(borrow);
+        bookService.borrow(bookId, SecurityUtils.getCurrentUserId());
         return Result.success();
     }
 
     @PutMapping("/return/{borrowId}")
-    @Transactional(rollbackFor = Exception.class)
     @Operation(summary = "归还图书")
     public Result<Void> returnBook(@Parameter(description = "借阅记录ID") @PathVariable Long borrowId) {
-        CampusBookBorrow borrow = borrowService.getById(borrowId);
-        if (borrow == null) throw new BusinessException("借阅记录不存在");
-        if (borrow.getStatus() != 0 && borrow.getStatus() != 2) throw new BusinessException("该记录已归还");
-
-        Long currentUserId = SecurityUtils.getCurrentUserId();
-        if (!currentUserId.equals(borrow.getStudentId()) && !SecurityUtils.hasRole("admin")) {
-            throw new BusinessException("无权归还该借阅记录");
-        }
-
-        borrow.setReturnTime(LocalDateTime.now());
-        borrow.setStatus(1);
-
-        if (LocalDateTime.now().isAfter(borrow.getDueTime())) {
-            long days = ChronoUnit.DAYS.between(borrow.getDueTime(), LocalDateTime.now());
-            borrow.setOverdueDays((int) days);
-        }
-        borrowService.updateById(borrow);
-
-        bookService.update(new LambdaUpdateWrapper<CampusBook>()
-                .eq(CampusBook::getId, borrow.getBookId())
-                .setSql("available_count = available_count + 1"));
+        bookService.returnBook(borrowId, SecurityUtils.getCurrentUserId(), SecurityUtils.hasRole("admin"));
         return Result.success();
     }
 

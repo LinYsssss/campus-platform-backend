@@ -27,6 +27,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 
@@ -84,6 +85,20 @@ public class EduScoreController {
         score.setStatus(0);
         scoreService.save(score);
         return Result.success();
+    }
+
+    @PostMapping("/import")
+    @SaCheckPermission("edu:score:add")
+    @LogRecord(module = "成绩管理", type = "批量导入")
+    @Operation(summary = "批量导入成绩", description = "上传 Excel 模板按课程和学期批量录入成绩，表头：学号 / 成绩 / 成绩类型 / 等级")
+    public Result<String> importScores(
+            @Parameter(description = "课程ID") @RequestParam Long courseId,
+            @Parameter(description = "学期，如 2025-2026-1") @RequestParam String semester,
+            @Parameter(description = "Excel 文件") @RequestParam("file") MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException("Excel 文件不能为空");
+        }
+        return Result.success(scoreService.importScores(file, courseId, semester));
     }
 
     @PutMapping

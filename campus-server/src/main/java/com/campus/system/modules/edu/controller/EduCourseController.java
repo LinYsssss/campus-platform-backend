@@ -22,7 +22,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -41,9 +40,6 @@ public class EduCourseController {
     private final EduCourseTeacherMapper courseTeacherMapper;
     private final EduCourseClassMapper courseClassMapper;
 
-    /**
-     * 分页查询课程列表
-     */
     @GetMapping("/page")
     @SaCheckPermission("edu:course:list")
     @Operation(summary = "分页查询课程列表")
@@ -66,9 +62,6 @@ public class EduCourseController {
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords(), (long) pageNum, (long) pageSize));
     }
 
-    /**
-     * 课程详情（含授课教师ID + 关联班级）
-     */
     @GetMapping("/{id}")
     @SaCheckPermission("edu:course:query")
     @Operation(summary = "获取课程详情")
@@ -91,36 +84,24 @@ public class EduCourseController {
         return Result.success(vo);
     }
 
-    /**
-     * 新增课程（含教师和班级绑定）
-     */
     @PostMapping
     @SaCheckPermission("edu:course:add")
     @LogRecord(module = "课程管理", type = "新增")
-    @Transactional(rollbackFor = Exception.class)
     @Operation(summary = "新增课程")
     public Result<Void> create(@Valid @RequestBody CourseCreateDTO dto) {
-        // 课程编码唯一
         long count = courseService.count(new LambdaQueryWrapper<EduCourse>().eq(EduCourse::getCourseCode, dto.getCourseCode()));
         if (count > 0) throw new BusinessException("课程编码 '" + dto.getCourseCode() + "' 已存在");
 
         EduCourse course = new EduCourse();
         BeanUtil.copyProperties(dto, course, "teacherIds", "classNames");
         course.setStatus(0);
-        courseService.save(course);
-
-        bindTeachers(course.getId(), dto.getTeacherIds());
-        bindClasses(course.getId(), dto.getClassNames());
+        courseService.createCourse(course, dto.getTeacherIds(), dto.getClassNames());
         return Result.success();
     }
 
-    /**
-     * 更新课程
-     */
     @PutMapping
     @SaCheckPermission("edu:course:edit")
     @LogRecord(module = "课程管理", type = "修改")
-    @Transactional(rollbackFor = Exception.class)
     @Operation(summary = "更新课程")
     public Result<Void> update(@Valid @RequestBody CourseCreateDTO dto) {
         if (dto.getId() == null) throw new BusinessException("课程ID不能为空");
@@ -128,37 +109,19 @@ public class EduCourseController {
         if (course == null) throw new BusinessException("课程不存在");
 
         BeanUtil.copyProperties(dto, course, "teacherIds", "classNames");
-        courseService.updateById(course);
-
-        // 重新绑定
-        courseTeacherMapper.delete(new LambdaQueryWrapper<EduCourseTeacher>().eq(EduCourseTeacher::getCourseId, dto.getId()));
-        courseClassMapper.delete(new LambdaQueryWrapper<EduCourseClass>().eq(EduCourseClass::getCourseId, dto.getId()));
-        bindTeachers(dto.getId(), dto.getTeacherIds());
-        bindClasses(dto.getId(), dto.getClassNames());
+        courseService.updateCourse(course, dto.getTeacherIds(), dto.getClassNames());
         return Result.success();
     }
 
-    /**
-     * 删除课程
-     */
     @DeleteMapping("/{id}")
     @SaCheckPermission("edu:course:delete")
     @LogRecord(module = "课程管理", type = "删除")
-    @Transactional(rollbackFor = Exception.class)
     @Operation(summary = "删除课程")
     public Result<Void> delete(@Parameter(description = "课程ID") @PathVariable Long id) {
-        // #9 级联清理关联表（Service层接管引用完整性）
-        courseTeacherMapper.delete(new LambdaQueryWrapper<EduCourseTeacher>()
-                .eq(EduCourseTeacher::getCourseId, id));
-        courseClassMapper.delete(new LambdaQueryWrapper<EduCourseClass>()
-                .eq(EduCourseClass::getCourseId, id));
-        courseService.removeById(id);
+        courseService.deleteCourseWithBindings(id);
         return Result.success();
     }
 
-    /**
-     * 结课操作
-     */
     @PutMapping("/{id}/finish")
     @SaCheckPermission("edu:course:edit")
     @LogRecord(module = "课程管理", type = "结课")
@@ -170,30 +133,6 @@ public class EduCourseController {
         courseService.updateById(course);
         return Result.success();
     }
-
-    // ============ 私有方法 ============
-
-    private void bindTeachers(Long courseId, List<Long> teacherIds) {
-        if (teacherIds == null) return;
-        teacherIds.forEach(tid -> {
-            EduCourseTeacher ct = new EduCourseTeacher();
-            ct.setCourseId(courseId);
-            ct.setTeacherId(tid);
-            courseTeacherMapper.insert(ct);
-        });
-    }
-
-    private void bindClasses(Long courseId, List<String> classNames) {
-        if (classNames == null) return;
-        classNames.forEach(cn -> {
-            EduCourseClass cc = new EduCourseClass();
-            cc.setCourseId(courseId);
-            cc.setClassName(cn);
-            courseClassMapper.insert(cc);
-        });
-    }
-
-    // ============ 内部 DTO/VO ============
 
     @Data
     @Schema(name = "课程新增请求", description = "新增或更新课程时提交的请求参数")

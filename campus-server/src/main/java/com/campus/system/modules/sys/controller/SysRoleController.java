@@ -15,7 +15,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -93,27 +92,17 @@ public class SysRoleController {
     @SaCheckPermission("sys:role:delete")
     @Operation(summary = "删除角色")
     public Result<Void> delete(@Parameter(description = "角色ID") @PathVariable Long id) {
-        roleService.removeById(id);
-        roleMenuMapper.delete(new LambdaQueryWrapper<SysRoleMenu>().eq(SysRoleMenu::getRoleId, id));
+        roleService.deleteRoleWithMenus(id);
         return Result.success();
     }
 
     @PostMapping("/{id}/menus")
     @SaCheckPermission("sys:role:edit")
-    @Transactional(rollbackFor = Exception.class)
     @Operation(summary = "分配角色菜单权限", description = "为角色重新绑定菜单权限")
     public Result<Void> assignMenus(
             @Parameter(description = "角色ID") @PathVariable Long id,
             @Parameter(description = "菜单ID列表") @RequestBody List<Long> menuIds) {
-        roleMenuMapper.delete(new LambdaQueryWrapper<SysRoleMenu>().eq(SysRoleMenu::getRoleId, id));
-        if (menuIds != null) {
-            menuIds.forEach(menuId -> {
-                SysRoleMenu rm = new SysRoleMenu();
-                rm.setRoleId(id);
-                rm.setMenuId(menuId);
-                roleMenuMapper.insert(rm);
-            });
-        }
+        roleService.assignMenus(id, menuIds);
         return Result.success();
     }
 
