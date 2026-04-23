@@ -7,9 +7,11 @@ import cn.hutool.crypto.digest.BCrypt;
 import com.campus.system.common.constants.SystemConstants;
 import com.campus.system.common.exception.BusinessException;
 import com.campus.system.modules.auth.dto.LoginDTO;
+import com.campus.system.modules.auth.dto.RegisterDTO;
 import com.campus.system.modules.auth.service.AuthService;
 import com.campus.system.modules.auth.vo.CaptchaVO;
 import com.campus.system.modules.auth.vo.LoginVO;
+import com.campus.system.modules.auth.vo.UserInfoVO;
 import com.campus.system.modules.sys.entity.SysUser;
 import com.campus.system.modules.sys.service.ISysUserService;
 import com.campus.system.modules.sys.service.impl.AsyncLogService;
@@ -19,6 +21,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
@@ -156,6 +159,19 @@ public class AuthServiceImpl implements AuthService {
     }
 
     /**
+     * 获取当前登录用户信息
+     */
+    @Override
+    public UserInfoVO getUserInfo() {
+        long userId = StpUtil.getLoginIdAsLong();
+        UserInfoVO vo = new UserInfoVO();
+        vo.setUser(userService.getUserDetail(userId));
+        vo.setPermissions(StpUtil.getPermissionList());
+        vo.setRoles(StpUtil.getRoleList());
+        return vo;
+    }
+
+    /**
      * 处理登录失败（递增失败计数，达阈值则锁定账号）
      */
     private void handleLoginFail(SysUser user) {
@@ -194,6 +210,45 @@ public class AuthServiceImpl implements AuthService {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    /**
+     * 用户注册
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void register(RegisterDTO dto) {
+        // 1. 校验验证码
+        String captchaRedisKey = SystemConstants.CAPTCHA_PREFIX + dto.getCaptchaKey();
+        String cachedCode = redisTemplate.opsForValue().get(captchaRedisKey);
+        if (cachedCode == null) {
+            throw new BusinessException("验证码已过期，请刷新后重试");
+        }
+        if (!cachedCode.equalsIgnoreCase(dto.getCaptchaCode())) {
+            throw new BusinessException("验证码输入错误");
+        }
+        // 验证码一次性使用
+        redisTemplate.delete(captchaRedisKey);
+
+        // 2. 校验用户名唯一
+        long count = userService.count(new LambdaQueryWrapper<SysUser>().eq(SysUser::getUsername, dto.getUsername()));
+        if (count > 0) {
+            throw new BusinessException("用户名 '" + dto.getUsername() + "' 已被注册");
+        }
+
+        // 3. 创建用户
+        SysUser user = new SysUser();
+        user.setUsername(dto.getUsername());
+        user.setRealName(dto.getRealName());
+        user.setPassword(BCrypt.hashpw(dto.getPassword()));
+        user.setPhone(dto.getPhone());
+        user.setEmail(dto.getEmail());
+        user.setUserType(dto.getUserType());
+        user.setDeptName(dto.getDeptName());
+        user.setClassName(dto.getClassName());
+        user.setStatus(0);
+        user.setLoginFailCount(0);
+        userService.save(user);
     }
 
     /**

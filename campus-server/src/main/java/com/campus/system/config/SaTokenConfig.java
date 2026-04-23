@@ -20,9 +20,10 @@ public class SaTokenConfig implements WebMvcConfigurer {
             // 全局登录校验（排除白名单）
             SaRouter.match("/**")
                     .notMatch(
-                            // 认证模块（验证码、登录）
-                            "/auth/captcha",
-                            "/auth/login",
+                            // 认证模块（验证码、登录、注册）— 兼容有/无前缀两种情况
+                            "/auth/captcha", "/api/auth/captcha",
+                            "/auth/login", "/api/auth/login",
+                            "/auth/register", "/api/auth/register",
                             // Swagger / Knife4j 文档
                             "/doc.html",
                             "/webjars/**",

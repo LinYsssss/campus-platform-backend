@@ -2,9 +2,11 @@ package com.campus.system.modules.auth.controller;
 
 import com.campus.system.common.api.Result;
 import com.campus.system.modules.auth.dto.LoginDTO;
+import com.campus.system.modules.auth.dto.RegisterDTO;
 import com.campus.system.modules.auth.service.AuthService;
 import com.campus.system.modules.auth.vo.CaptchaVO;
 import com.campus.system.modules.auth.vo.LoginVO;
+import com.campus.system.modules.auth.vo.UserInfoVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -43,5 +45,18 @@ public class AuthController {
     public Result<Void> logout() {
         authService.logout();
         return Result.success();
+    }
+
+    @PostMapping("/register")
+    @Operation(summary = "用户注册", description = "开放注册新账号，校验验证码后创建用户")
+    public Result<Void> register(@Valid @RequestBody RegisterDTO dto) {
+        authService.register(dto);
+        return Result.success();
+    }
+
+    @GetMapping("/userInfo")
+    @Operation(summary = "获取当前登录用户信息", description = "返回用户详情、权限列表与角色列表")
+    public Result<UserInfoVO> userInfo() {
+        return Result.success(authService.getUserInfo());
     }
 }
