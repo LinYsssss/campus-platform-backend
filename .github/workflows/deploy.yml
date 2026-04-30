@@ -31,10 +31,10 @@ jobs:
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_IP }}
-          username: ${{ secrets.SERVER_USER }}
+          username: ubuntu
           key: ${{ secrets.SERVER_SSH_KEY }}
           source: campus-server/target/campus-server-1.0.0-SNAPSHOT.jar
-          target: /opt/apps/backend/
+          target: /home/ubuntu/
           strip_components: 2
           overwrite: true
 
@@ -42,11 +42,11 @@ jobs:
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_IP }}
-          username: ${{ secrets.SERVER_USER }}
+          username: ubuntu
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             set -e
-            mv /opt/apps/backend/campus-server-1.0.0-SNAPSHOT.jar /opt/apps/backend/campus-server.jar
-            systemctl restart campus-backend
-            systemctl status campus-backend --no-pager -l
+            sudo mv /home/ubuntu/campus-server-1.0.0-SNAPSHOT.jar /opt/apps/backend/campus-server.jar
+            sudo systemctl restart campus-backend
+            sudo systemctl status campus-backend --no-pager -l
             curl -I http://127.0.0.1:8080/api/doc.html
