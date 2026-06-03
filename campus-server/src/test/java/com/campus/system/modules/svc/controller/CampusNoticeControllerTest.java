@@ -59,7 +59,7 @@ class CampusNoticeControllerTest {
             stpUtil.when(() -> StpUtil.hasRole("teacher")).thenReturn(false);
             stpUtil.when(() -> StpUtil.hasRole("student")).thenReturn(true);
 
-            Result<PageResult<CampusNotice>> result = controller.page(1, 10,  null);
+            Result<PageResult<CampusNoticeController.NoticeVO>> result = controller.page(1, 10, null);
 
             assertEquals(1, result.getData().getList().size());
             assertEquals(1L, result.getData().getList().get(0).getId());
